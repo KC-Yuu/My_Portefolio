@@ -8,7 +8,7 @@ function Projects() {
 
     const handleButtonClick = (project) => {
         setCurrentProject(project);
-        setShowDescriptionAndStacks(true); // Reset to description and stacks when switching projects
+        setShowDescriptionAndStacks(true);
     };
 
     const toggleView = () => {
@@ -35,7 +35,7 @@ function Projects() {
                     {projects.map(project => (
                         <button key={project.id} onClick={() => handleButtonClick(project)}
                                 className={`border border-custom-brown rounded-full pr-2 pl-2 h-10 w-10 space-x-8
-                                mr-2 mb-3 transform transition duration-500 ease-in-out hover:scale-125 
+                                mr-2 mb-3 transform transition duration-500 ease-in-out hover:scale-125
                             ${currentProject.id === project.id ? 'bg-custom-brown text-white' : ''}`}>
                             {project.id}
                         </button>

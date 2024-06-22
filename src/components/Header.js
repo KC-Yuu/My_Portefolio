@@ -43,40 +43,40 @@ function Header() {
                               d="M4 6h16M4 12h16M4 18h16"/>
                     </svg>
                 </button>
-                <ul className={`flex flex-row space-x-8 md:space-x-4 justify-center text-4xl md:text-4xl cursor-pointer 
+                <ul className={`flex flex-row space-x-8 md:space-x-4 justify-center text-4xl md:text-4xl cursor-pointer
                         lg:text-5xl font-custom-font-japon ${showNav ? 'block' : 'hidden'} md:hidden`}>
                     <li className="bg-custom-gold opacity-0 animate-fadeIn">
-                        <a onClick={() => handleClick('home')} className="hover:text-red-700">ACCUEIL</a>
+                        <button onClick={() => handleClick('home')} className="hover:text-red-700">ACCUEIL</button>
                     </li>
                     <li className="bg-custom-gold opacity-0 animate-fadeIn">
-                        <a onClick={() => handleClick('about')} className="hover:text-red-700">A PROPOS</a>
+                        <button onClick={() => handleClick('about')} className="hover:text-red-700">A PROPOS</button>
                     </li>
                     <li className="bg-custom-gold opacity-0 animate-fadeIn">
-                        <a onClick={() => handleClick('skills')} className="hover:text-red-700">COMPETENCES</a>
+                        <button onClick={() => handleClick('skills')} className="hover:text-red-700">COMPETENCES</button>
                     </li>
                     <li className="bg-custom-gold opacity-0 animate-fadeIn">
-                        <a onClick={() => handleClick('projects')} className="hover:text-red-700">PROJETS</a>
+                        <button onClick={() => handleClick('projects')} className="hover:text-red-700">PROJETS</button>
                     </li>
                     <li className="bg-custom-gold opacity-0 animate-fadeIn">
-                        <a onClick={() => handleClick('contact')} className="hover:text-red-700">CONTACT</a>
+                        <button onClick={() => handleClick('contact')} className="hover:text-red-700">CONTACT</button>
                     </li>
                 </ul>
                 <ul className="hidden md:flex flex-row space-x-8 md:space-x-8 justify-center cursor-pointer
                     text-4xl md:text-4xl lg:text-5xl font-custom-font-japon">
                     <li className="bg-custom-gold opacity-0 animate-fadeIn">
-                        <a onClick={() => handleClick('home')} className="hover:text-red-700">ACCUEIL</a>
+                        <button onClick={() => handleClick('home')} className="hover:text-red-700">ACCUEIL</button>
                     </li>
                     <li className="bg-custom-gold opacity-0 animate-fadeIn">
-                        <a onClick={() => handleClick('about')} className="hover:text-red-700">A PROPOS</a>
+                        <button onClick={() => handleClick('about')} className="hover:text-red-700">A PROPOS</button>
                     </li>
                     <li className="bg-custom-gold opacity-0 animate-fadeIn">
-                        <a onClick={() => handleClick('skills')} className="hover:text-red-700">COMPETENCES</a>
+                        <button onClick={() => handleClick('skills')} className="hover:text-red-700">COMPETENCES</button>
                     </li>
                     <li className="bg-custom-gold opacity-0 animate-fadeIn">
-                        <a onClick={() => handleClick('projects')} className="hover:text-red-700">PROJETS</a>
+                        <button onClick={() => handleClick('projects')} className="hover:text-red-700">PROJETS</button>
                     </li>
                     <li className="bg-custom-gold opacity-0 animate-fadeIn">
-                        <a onClick={() => handleClick('contact')} className="hover:text-red-700">CONTACT</a>
+                        <button onClick={() => handleClick('contact')} className="hover:text-red-700">CONTACT</button>
                     </li>
                 </ul>
             </nav>
@@ -118,13 +118,13 @@ function Header() {
                 className={`w-1/2 overflow-hidden z-20 absolute top-0 left-0 h-full ${isClicked ? "animate-slideOutToLeft" : ""}`}
             >
                 <img src="/assets/porte-gauche.png" alt="bannière header gauche"
-                     className="w-full h-full object-cover"/>
+                    className="w-full h-full object-cover"/>
             </div>
             <div
                 className={`w-1/2 overflow-hidden z-20 absolute top-0 right-0 h-full ${isClicked ? "animate-slideOutToRight" : ""}`}
             >
                 <img src="/assets/porte-droite.png" alt="bannière header droite"
-                     className="w-full h-full object-cover"/>
+                    className="w-full h-full object-cover"/>
             </div>
         </header>
     );
