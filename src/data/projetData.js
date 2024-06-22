@@ -33,7 +33,7 @@ export const projects = [
         stacks: ["REACT", "NODE", "EXPRESS", "MONGODB", "API", "TAILWINDS"],
         githubLink:
             "https://github.com/EpitechWebAcademiePromo2025/W-JSC-502-LIL-2-1-mernj4-maxime.caron",
-        image: "/assets/picture_projets/My_Blog.png",
+        image: "/assets/picture_projets/My_Blog.PNG",
         competences: [
             "Déployer un environnement de travail : Mise en place des outils de versionnage, de partage et de collaboration/communication nécessaires pour le projet (par exemple, utilisation de GitHub pour le contrôle de version).",
             "Identifier les fonctionnalités à développer : Modéliser les divers éléments et leurs interconnexions pour structurer l'architecture de la solution web et de la base de données (par exemple, les opérations CRUD pour les billets de blog).",
@@ -57,7 +57,7 @@ export const projects = [
         stacks: ["PHP", "HTML", "JS", "TAILWINDS", "MYSQL"],
         githubLink:
             "https://github.com/EpitechWebAcademiePromo2025/W-WEB-090-LIL-1-1-academie-sofiane.bessaha",
-        image: "/assets/picture_projets/Tweet_Acdemie.png",
+        image: "/assets/picture_projets/Tweet_Acdemie.PNG",
         competences: [
             "Déployer un environnement de travail : Mise en place des outils de versionnage, de partage et de collaboration nécessaires pour le projet (par exemple, utilisation de GitHub pour le contrôle de version).",
             "Identifier les fonctionnalités à développer : Modélisation des diverses fonctionnalités de Twitter (tweets, hashtags, mentions, etc.) et de leur interconnexion.",
