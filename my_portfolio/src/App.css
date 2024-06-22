@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+    font-family: 'Japon-Font';
+    src: url('../public/fonts/Japon.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'MADEINFINITY-Font';
+    src: url('../public/fonts/MADEINFINITYPersonalUse-Thin.otf') format('opentype');
+    font-weight: normal;
+}
+
+body {
+    overflow-x: hidden;
+    overflow-y: scroll;
+}
+
+body::-webkit-scrollbar {
+    display: none;
+}
+
+body {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* //////////////// ANIMATION NAV //////////////// */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.animate-fadeIn {
+    animation: fadeIn 2s ease-in-out forwards;
+}
+
+/* //////////////// ANIMATION PORTE OUVERTURE PORTEFOLIO //////////////// */
+@keyframes slideOutToLeft {
+    0% {
+        transform: translateX(0);
+    }
+    99% {
+        visibility: visible;
+    }
+    100% {
+        transform: translateX(-100%);
+        visibility: hidden;
+    }
+}
+
+@keyframes slideOutToRight {
+    0% {
+        transform: translateX(0);
+    }
+    99% {
+        visibility: visible;
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.animate-slideOutToLeft {
+    animation: slideOutToLeft 2s forwards;
+}
+
+.animate-slideOutToRight {
+    animation: slideOutToRight 2s forwards;
+}
+
+/* //////////////// ANIMATION TEXTE SLIDE HEADER //////////////// */
+@keyframes infiniteScrollLeft {
+    0% {
+        transform: translateX(100%);
+    }
+    100% {
+        transform: translateX(-100%);
+    }
+}
+
+.animate-infiniteScrollLeft {
+    animation: infiniteScrollLeft 15s linear infinite;
+}
+
+@keyframes infiniteScrollRight {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.animate-infiniteScrollRight {
+    animation: infiniteScrollRight 15s linear infinite;
+}
+
+/* //////////////// ANIMATION VAGUE DU FOOTER //////////////// */
+@keyframes wave-animation {
+    0% {
+        transform: translateX(0px);
+    }
+    100% {
+        transform: translateX(10px);
+    }
+}
+
+.wave-animation {
+    animation: wave-animation 2s infinite ease-in-out alternate;
+}
+
+/* Styles pour les écrans de taille moyenne (tablette) */
+@media (max-width: 768px) {
+    .flex-row {
+        flex-direction: column;
+    }
+
+    .text-5xl {
+        font-size: 2rem;
+    }
+}
+
+/* Styles pour les petits écrans (mobile) */
+@media (max-width: 480px) {
+    .flex-row {
+        flex-direction: column;
+    }
+
+    .text-5xl {
+        font-size: 1.5rem;
+    }
+}
+
+.custom-hidden {
+    display: none;
+}
+
+.text-defillant {
+    white-space: nowrap;
+}
