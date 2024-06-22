@@ -9,7 +9,7 @@ function Skills() {
                     backgroundRepeat: 'no-repeat',
                     backgroundPosition: 'right',
                 }}
-                     className="flex w-full h-full lg:bg-72 absolute z-0" data-aos="fade-left" data-aos-delay="500">
+                    className="flex w-full h-full lg:bg-72 absolute z-0" data-aos="fade-left" data-aos-delay="500">
                 </div>
             </div>
             <div className=" mx-auto px-4 z-0">
