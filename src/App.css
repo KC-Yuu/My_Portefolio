@@ -3,30 +3,50 @@
 @tailwind utilities;
 
 @font-face {
-    font-family: 'Japon-Font';
-    src: url('../public/fonts/Japon.ttf') format('truetype');
+    font-family: "Japon-Font";
+    src: url("../public/fonts/Japon.ttf") format("truetype");
     font-weight: normal;
     font-style: normal;
 }
 
 @font-face {
-    font-family: 'MADEINFINITY-Font';
-    src: url('../public/fonts/MADEINFINITYPersonalUse-Thin.otf') format('opentype');
+    font-family: "MADEINFINITY-Font";
+    src: url("../public/fonts/MADEINFINITYPersonalUse-Thin.otf")
+        format("opentype");
     font-weight: normal;
 }
 
+/* Update the body styles to prevent horizontal scrolling */
 body {
     overflow-x: hidden;
     overflow-y: scroll;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Update the animation to use fixed positioning for the doors */
+.animate-slideOutToLeft {
+    animation: slideOutToLeft 2s forwards;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 50vw;
+    z-index: 1000;
+}
+
+.animate-slideOutToRight {
+    animation: slideOutToRight 2s forwards;
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100vh;
+    width: 50vw;
+    z-index: 1000;
 }
 
 body::-webkit-scrollbar {
     display: none;
-}
-
-body {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
 }
 
 /* //////////////// ANIMATION NAV //////////////// */
@@ -118,32 +138,255 @@ body {
     animation: wave-animation 2s infinite ease-in-out alternate;
 }
 
+/* Styles pour les textes défilants */
+.text-defillant {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    display: inline-block;
+}
+
 /* Styles pour les écrans de taille moyenne (tablette) */
 @media (max-width: 768px) {
-    .flex-row {
-        flex-direction: column;
+    .flex-wrap {
+        flex-direction: row;
+        flex-wrap: wrap;
     }
 
-    .text-5xl {
-        font-size: 2rem;
+    .text-7xl {
+        font-size: 3rem;
+    }
+
+    .text-2xl {
+        font-size: 1.25rem;
+    }
+
+    .max-w-4xl {
+        max-width: 100%;
+    }
+
+    .p-12 {
+        padding: 1rem;
+    }
+
+    .space-x-20 {
+        margin-right: 0;
+        margin-left: 0;
+    }
+
+    .sm\:ml-20 {
+        margin-left: 2.5rem;
+    }
+
+    .sm\:mb-5 {
+        margin-bottom: 1.25rem;
+    }
+
+    .md\:mb-5 {
+        margin-bottom: 1.25rem;
+    }
+
+    .md\:mr-20 {
+        margin-right: 2.5rem;
+    }
+
+    .sm\:w-52 {
+        width: 13rem;
+    }
+
+    .sm\:h-52 {
+        height: 13rem;
+    }
+
+    .md\:w-64 {
+        width: 16rem;
+    }
+
+    .md\:h-64 {
+        height: 16rem;
+    }
+
+    .lg\:w-64 {
+        width: 16rem;
+    }
+
+    .lg\:h-64 {
+        height: 16rem;
     }
 }
 
 /* Styles pour les petits écrans (mobile) */
 @media (max-width: 480px) {
-    .flex-row {
-        flex-direction: column;
+    .flex-wrap {
+        flex-direction: row;
+        flex-wrap: wrap;
     }
 
-    .text-5xl {
-        font-size: 1.5rem;
+    .text-7xl {
+        font-size: 2rem;
+    }
+
+    .text-2xl {
+        font-size: 1rem;
+    }
+
+    .max-w-4xl {
+        max-width: 100%;
+    }
+
+    .p-12 {
+        padding: 0.5rem;
+    }
+
+    .space-x-20 {
+        margin-right: 0;
+        margin-left: 0;
+    }
+
+    .sm\:ml-20 {
+        margin-left: 1.25rem;
+    }
+
+    .sm\:mb-5 {
+        margin-bottom: 0.625rem;
+    }
+
+    .md\:mb-5 {
+        margin-bottom: 0.625rem;
+    }
+
+    .md\:mr-20 {
+        margin-right: 1.25rem;
+    }
+
+    .sm\:w-52 {
+        width: 10rem;
+    }
+
+    .sm\:h-52 {
+        height: 10rem;
+    }
+
+    .md\:w-64 {
+        width: 12rem;
+    }
+
+    .md\:h-64 {
+        height: 12rem;
+    }
+
+    .lg\:w-64 {
+        width: 12rem;
+    }
+
+    .lg\:h-64 {
+        height: 12rem;
+    }
+
+    .mt-24 {
+        margin-top: 6rem;
     }
 }
 
-.custom-hidden {
-    display: none;
+.section-transition {
+    position: relative;
+    padding: 4rem 0;
 }
 
-.text-defillant {
-    white-space: nowrap;
+.section-transition::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 4rem;
+    background: linear-gradient(to bottom, var(--custom-brown), transparent);
+}
+
+.section-transition::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 4rem;
+    background: linear-gradient(to top, var(--custom-brown), transparent);
+}
+
+:root {
+    --custom-brown: #756861;
+    --custom-black: #1e1e24;
+    --custom-beige: #fff9f2;
+    --custom-gold: #fefbec;
+}
+
+.modern-btn {
+    position: relative;
+    padding: 0.5rem 1.5rem;
+    background-color: var(--custom-gold);
+    color: var(--custom-black);
+    border: 1px solid var(--custom-brown);
+    border-radius: 0.25rem;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    z-index: 1;
+}
+
+.modern-btn::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background-color: var(--custom-brown);
+    transition: all 0.3s ease;
+    z-index: -1;
+}
+
+.modern-btn:hover {
+    color: var(--custom-gold);
+}
+
+.modern-btn:hover::before {
+    left: 0;
+}
+
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  /* Improve tap targets */
+  button, a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Prevent text from being too small */
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  
+  /* Improve form elements on mobile */
+  input, select, textarea {
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+  
+  /* Fix for any potential overflow issues */
+  img, video {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/* Smooth scrolling for the entire site */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Fix for iOS momentum scrolling */
+body {
+  -webkit-overflow-scrolling: touch;
 }
