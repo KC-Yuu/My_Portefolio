@@ -3,21 +3,27 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { Tractor as TractorSprite } from '@/components/sprites/Tractor';
 import { TractorSeeder as TractorSeederSprite } from '@/components/sprites/TractorSeeder';
+import { Combine as CombineSprite } from '@/components/sprites/Combine';
 import { Sunflower } from '@/components/sprites/Sunflower';
 import { useAnimationFrame } from './useAnimationFrame';
 
 const TRACTOR_SIZE = 72;
 const SPRITE_W_PX = 132;
+// Combine is taller in viewBox (26h vs 24h) and wider (56 vs 44). Height matched
+// to tractor; width derived so the sprite renders at correct aspect.
+const COMBINE_W_PX = Math.round((TRACTOR_SIZE * 56) / 26);
 
-// Three phases of the field cycle:
-//   0 = plow   (4 passes, tractor + plow leaves dirt rows)
-//   1 = seed   (4 passes, same path, sunflower-seed overlay)
-//   2 = grow   (1 pass,   tractor offscreen, sunflowers bloom on planted rows)
+// Four phases of the field cycle:
+//   0 = plow    (4 passes, tractor + plow leaves dirt rows)
+//   1 = seed    (4 passes, same path, sunflower-seed overlay)
+//   2 = grow    (1 pass,   tractor offscreen, sunflowers bloom)
+//   3 = harvest (4 passes, combine retraces rows, sunflowers fall as it passes)
 const N_PLOW = 4;
 const N_SEED = 4;
 const N_GROW = 1;
+const N_HARVEST = 4;
 const N_ROWS = N_PLOW;
-const TOTAL_PASSES = N_PLOW + N_SEED + N_GROW;
+const TOTAL_PASSES = N_PLOW + N_SEED + N_GROW + N_HARVEST;
 const PASS_MS = 28000;
 const CYCLE_MS = TOTAL_PASSES * PASS_MS;
 const SPAN_VW = 128;
@@ -67,7 +73,10 @@ const FLOWER_SCALE = Array.from({ length: FLOWERS_PER_ROW }, (_, i) =>
 function classifyPhase(globalIdx: number): { phaseIdx: number; passIdx: number } {
   if (globalIdx < N_PLOW) return { phaseIdx: 0, passIdx: globalIdx };
   if (globalIdx < N_PLOW + N_SEED) return { phaseIdx: 1, passIdx: globalIdx - N_PLOW };
-  return { phaseIdx: 2, passIdx: globalIdx - N_PLOW - N_SEED };
+  if (globalIdx < N_PLOW + N_SEED + N_GROW) {
+    return { phaseIdx: 2, passIdx: globalIdx - N_PLOW - N_SEED };
+  }
+  return { phaseIdx: 3, passIdx: globalIdx - N_PLOW - N_SEED - N_GROW };
 }
 
 const DEV = process.env.NODE_ENV === 'development';
@@ -79,6 +88,7 @@ export function Tractor() {
   const tractorRef = useRef<HTMLDivElement>(null);
   const plowSpriteRef = useRef<HTMLDivElement>(null);
   const seederSpriteRef = useRef<HTMLDivElement>(null);
+  const combineSpriteRef = useRef<HTMLDivElement>(null);
   const flowerRefs = useRef<(HTMLDivElement | null)[][]>(
     Array.from({ length: N_ROWS }, () => new Array(FLOWERS_PER_ROW).fill(null)),
   );
@@ -114,6 +124,7 @@ export function Tractor() {
       if (e.key === '1') jumpTo(0);
       else if (e.key === '2') jumpTo(N_PLOW);
       else if (e.key === '3') jumpTo(N_PLOW + N_SEED);
+      else if (e.key === '4') jumpTo(N_PLOW + N_SEED + N_GROW);
       else if (e.key === 'r' || e.key === 'R') jumpTo(0);
     };
     window.addEventListener('keydown', onKey);
@@ -143,9 +154,10 @@ export function Tractor() {
     const tractorY = baseY + bounce;
     const flip = isLR ? 1 : -1;
 
+    const activeSpriteWidthPx = phaseIdx === 3 ? COMBINE_W_PX : SPRITE_W_PX;
     const spriteVw =
       typeof window !== 'undefined' && window.innerWidth
-        ? (SPRITE_W_PX / window.innerWidth) * 100
+        ? (activeSpriteWidthPx / window.innerWidth) * 100
         : 8;
 
     const trailWidthFor = (n: number): number => {
@@ -178,8 +190,10 @@ export function Tractor() {
       }
     }
 
-    // Sunflowers: only updated during phase 2 (display:none toggled elsewhere
-    // hides them otherwise so we skip per-frame work below).
+    // Sunflowers: updated during phase 2 (grow) and phase 3 (harvest).
+    // Phase 2: scale grows over localP with row+col stagger.
+    // Phase 3: bloomed (1.0) until combine's cutting edge crosses each flower's
+    //          x position on its row, then snaps to 0.
     if (phaseIdx === 2) {
       for (let r = 0; r < N_ROWS; r++) {
         for (let c = 0; c < FLOWERS_PER_ROW; c++) {
@@ -196,6 +210,31 @@ export function Tractor() {
           const sx = FLOWER_SCALE[c];
           el.style.transform = `scaleX(${sx}) scaleY(${p * sx})`;
           el.style.opacity = `${Math.min(1, p * 2.5)}`;
+        }
+      }
+    } else if (phaseIdx === 3) {
+      // Harvest swath per row (vw from the appropriate edge based on direction).
+      const harvestSwathFor = (n: number): number => {
+        if (passIdx > n) return 100;
+        if (passIdx < n) return 0;
+        const isLRPass = n % 2 === 0;
+        const raw = isLRPass ? tractorX + spriteVw : 100 - tractorX;
+        return raw < 0 ? 0 : raw > 100 ? 100 : raw;
+      };
+      for (let r = 0; r < N_ROWS; r++) {
+        const swath = harvestSwathFor(r);
+        const isLRRow = r % 2 === 0;
+        for (let c = 0; c < FLOWERS_PER_ROW; c++) {
+          const flowerXvw = FLOWER_XS[c] + FLOWER_JITTER_X[c];
+          const harvested = isLRRow ? flowerXvw < swath : flowerXvw > 100 - swath;
+          const p = harvested ? 0 : 1;
+          if (p === lastFlowerP[r][c]) continue;
+          lastFlowerP[r][c] = p;
+          const el = flowerRefs.current[r][c];
+          if (!el) continue;
+          const sx = FLOWER_SCALE[c];
+          el.style.transform = `scaleX(${sx}) scaleY(${p * sx})`;
+          el.style.opacity = `${p}`;
         }
       }
     }
@@ -217,21 +256,40 @@ export function Tractor() {
       if (seederSpriteRef.current) {
         seederSpriteRef.current.style.display = phaseIdx === 1 ? 'block' : 'none';
       }
+      if (combineSpriteRef.current) {
+        combineSpriteRef.current.style.display = phaseIdx === 3 ? 'block' : 'none';
+      }
       if (tractorRef.current) {
         tractorRef.current.style.display = phaseIdx === 2 ? 'none' : 'block';
       }
-      // Toggle flower rows visibility — paid only when phase changes.
+      // Flower rows visible during phase 2 (growing) and phase 3 (being harvested).
+      const flowersVisible = phaseIdx === 2 || phaseIdx === 3;
       for (let r = 0; r < N_ROWS; r++) {
         const rowEl = flowerRowRefs.current[r];
-        if (rowEl) rowEl.style.display = phaseIdx === 2 ? 'block' : 'none';
+        if (rowEl) rowEl.style.display = flowersVisible ? 'block' : 'none';
       }
-      // Reset cached per-flower state so first frame of phase 2 writes fresh values.
+      // Reset cached per-flower state at phase boundaries that affect flowers.
       if (phaseIdx === 2) {
+        // Entering grow: animate from 0 → 1.
         for (let r = 0; r < N_ROWS; r++) {
           for (let c = 0; c < FLOWERS_PER_ROW; c++) lastFlowerP[r][c] = -1;
         }
+      } else if (phaseIdx === 3) {
+        // Entering harvest: all flowers start bloomed (p=1), combine snaps them
+        // back to 0 as it passes.
+        for (let r = 0; r < N_ROWS; r++) {
+          for (let c = 0; c < FLOWERS_PER_ROW; c++) {
+            const el = flowerRefs.current[r][c];
+            const sx = FLOWER_SCALE[c];
+            if (el) {
+              el.style.transform = `scaleX(${sx}) scaleY(${sx})`;
+              el.style.opacity = '1';
+            }
+            lastFlowerP[r][c] = 1;
+          }
+        }
       } else {
-        // Snap flowers back to invisible state.
+        // Phases 0/1: hide flowers entirely.
         for (let r = 0; r < N_ROWS; r++) {
           for (let c = 0; c < FLOWERS_PER_ROW; c++) {
             const el = flowerRefs.current[r][c];
@@ -427,6 +485,12 @@ export function Tractor() {
         >
           <TractorSeederSprite size={TRACTOR_SIZE} />
         </div>
+        <div
+          ref={combineSpriteRef}
+          style={{ position: 'absolute', bottom: 0, left: 0, display: 'none' }}
+        >
+          <CombineSprite size={TRACTOR_SIZE} />
+        </div>
       </div>
       {DEV && <TractorDevPanel jumpTo={jumpTo} />}
     </div>
@@ -464,6 +528,7 @@ function TractorDevPanel({ jumpTo }: { jumpTo: (idx: number) => void }) {
       <button style={btn} onClick={() => jumpTo(0)} title="key: 1">▶ plow</button>
       <button style={btn} onClick={() => jumpTo(N_PLOW)} title="key: 2">🌱 seed</button>
       <button style={btn} onClick={() => jumpTo(N_PLOW + N_SEED)} title="key: 3">🌻 grow</button>
+      <button style={btn} onClick={() => jumpTo(N_PLOW + N_SEED + N_GROW)} title="key: 4">🌾 harvest</button>
     </div>
   );
 }
