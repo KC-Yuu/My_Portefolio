@@ -102,6 +102,7 @@ export function Tractor() {
   );
   const lastTractorTransformRef = useRef<string>('');
   const lastPhaseRef = useRef<number>(-1);
+  const lastTractorZRef = useRef<number>(-1);
 
   useEffect(() => {
     startRef.current = performance.now();
@@ -245,6 +246,14 @@ export function Tractor() {
       if (next !== lastTractorTransformRef.current) {
         lastTractorTransformRef.current = next;
         tractorRef.current.style.transform = next;
+      }
+      // Sit between flower rows during harvest so flowers on rows closer to the
+      // viewer (higher r) render in front of the combine. Outside phase 3 the
+      // tractor is on top (no flowers visible at the same time).
+      const desiredZ = phaseIdx === 3 ? 100 + passIdx * 10 + 5 : 10;
+      if (desiredZ !== lastTractorZRef.current) {
+        lastTractorZRef.current = desiredZ;
+        tractorRef.current.style.zIndex = String(desiredZ);
       }
     }
 
@@ -409,7 +418,7 @@ export function Tractor() {
               bottom: `${rowTop}px`,
               height: 0,
               pointerEvents: 'none',
-              zIndex: 2 + r,
+              zIndex: 100 + r * 10,
               display: 'none',
             }}
           >
