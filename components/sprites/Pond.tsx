@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react';
+
 type Rect = readonly [x: number, y: number, w: number, h: number];
 
 interface Layer {
@@ -262,38 +264,98 @@ const PAD_C_RING_3: ReadonlyArray<Rect> = [
 ];
 
 const RIPPLE_COLOR = '#c8e3f5';
-
-const FRAME_A_HIGHLIGHTS: ReadonlyArray<Rect> = [
-  [22, 11, 8, 1],
-  [60, 13, 6, 1],
-  [88, 11, 8, 1],
-  [115, 14, 7, 1],
-  [35, 28, 10, 1],
-  [110, 30, 8, 1],
-  [18, 22, 4, 1],
-  [128, 26, 5, 1],
-  [62, 32, 8, 1],
-  [42, 9, 3, 1],
-];
-
-const FRAME_B_HIGHLIGHTS: ReadonlyArray<Rect> = [
-  [32, 11, 6, 1],
-  [70, 13, 8, 1],
-  [98, 11, 6, 1],
-  [122, 14, 6, 1],
-  [50, 30, 8, 1],
-  [120, 28, 6, 1],
-  [22, 20, 5, 1],
-  [130, 24, 4, 1],
-  [82, 32, 6, 1],
-  [54, 9, 4, 1],
-];
-
 const HIGHLIGHT_COLOR = '#a5d3ee';
 
+// Sparkles: many independent points across the water, each fading on its own
+// cycle. Smooth ease-in-out beats the old 2-frame opacity toggle.
+interface Sparkle {
+  x: number;
+  y: number;
+  w: number;
+  delay: number;
+  duration: number;
+  color: string;
+}
+
+function generateSparkles(count: number, seed: number): Sparkle[] {
+  const rand = makeRng(seed);
+  const result: Sparkle[] = [];
+  let attempts = 0;
+  while (result.length < count && attempts < count * 8) {
+    attempts++;
+    const y = WATER_INSET + 1 + Math.floor(rand() * (VB_H - 2 * WATER_INSET - 2));
+    const profile = rowProfile(y);
+    if (!profile) continue;
+    const minX = profile.x + WATER_INSET + 1;
+    const maxX = profile.x + profile.w - WATER_INSET - 1;
+    if (maxX - minX < 2) continue;
+    const x = minX + Math.floor(rand() * (maxX - minX));
+    const w = 1 + Math.floor(rand() * 3);
+    if (x + w > maxX) continue;
+    // Skip rows occupied by lily pads (17-25 across cols 45-86 and 96-107).
+    if (y >= 14 && y <= 28) {
+      const inPadA = x + w >= 44 && x <= 56;
+      const inPadB = x + w >= 72 && x <= 86;
+      const inPadC = x + w >= 96 && x <= 108;
+      if (inPadA || inPadB || inPadC) continue;
+    }
+    result.push({
+      x,
+      y,
+      w,
+      delay: rand() * 6,
+      duration: 2.4 + rand() * 2.6,
+      color: rand() < 0.45 ? RIPPLE_COLOR : HIGHLIGHT_COLOR,
+    });
+  }
+  return result;
+}
+
+const SPARKLES: ReadonlyArray<Sparkle> = generateSparkles(28, 91827);
+
+// Long thin horizontal wave streaks that drift slowly — surface motion cue.
+interface Streak {
+  x: number;
+  y: number;
+  w: number;
+  delay: number;
+  duration: number;
+  driftPx: number;
+}
+const STREAKS: ReadonlyArray<Streak> = [
+  { x: 24, y: 12, w: 14, delay: 0,   duration: 9, driftPx: 6 },
+  { x: 86, y: 11, w: 16, delay: 2.5, duration: 11, driftPx: 7 },
+  { x: 30, y: 30, w: 18, delay: 4.5, duration: 10, driftPx: 8 },
+  { x: 92, y: 31, w: 14, delay: 1.5, duration: 9.5, driftPx: 6 },
+  { x: 56, y: 14, w: 10, delay: 6,   duration: 8.5, driftPx: 5 },
+  { x: 60, y: 29, w: 12, delay: 3,   duration: 10.5, driftPx: 6 },
+];
+
 const STYLES = `
-.pond-a { animation: pond-shimmer-a 3.6s steps(1) infinite; }
-.pond-b { animation: pond-shimmer-b 3.6s steps(1) infinite; }
+.pond-sparkle {
+  opacity: 0;
+  animation-name: pond-sparkle;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+@keyframes pond-sparkle {
+  0%, 100% { opacity: 0; }
+  35%      { opacity: 0.85; }
+  65%      { opacity: 0.85; }
+}
+.pond-streak {
+  opacity: 0;
+  animation-name: pond-streak;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+@keyframes pond-streak {
+  0%   { opacity: 0; transform: translateX(0); }
+  25%  { opacity: 0.55; }
+  50%  { opacity: 0.55; }
+  75%  { opacity: 0; }
+  100% { opacity: 0; transform: translateX(var(--drift)); }
+}
 .lily-pad-group {
   animation: pad-drift 12s steps(4, end) infinite;
 }
@@ -307,17 +369,9 @@ const STYLES = `
   75%  { transform: translate(-1px, 0px); }
   100% { transform: translate(0px, 0px); }
 }
-@keyframes pond-shimmer-a {
-  0%, 49.99% { opacity: 1; }
-  50%, 100%  { opacity: 0; }
-}
-@keyframes pond-shimmer-b {
-  0%, 49.99% { opacity: 0; }
-  50%, 100%  { opacity: 1; }
-}
 @media (prefers-reduced-motion: reduce) {
-  .pond-a, .pond-b, .lily-pad-group { animation: none; }
-  .pond-b { opacity: 0; }
+  .pond-sparkle, .pond-streak, .lily-pad-group { animation: none; }
+  .pond-streak { opacity: 0.35; }
 }
 `;
 
@@ -335,6 +389,17 @@ const STATIC_SVG_STRING = `<svg xmlns="http://www.w3.org/2000/svg" width="${VB_W
 ).join('')}</svg>`;
 const STATIC_SRC = `data:image/svg+xml;utf8,${encodeURIComponent(STATIC_SVG_STRING)}`;
 
+// Drop shadow cast to the left: earth silhouette in dark color, offset via CSS.
+// Pre-rendered as cached img — static, no filter, no animation.
+const SHADOW_SVG_STRING = `<svg xmlns="http://www.w3.org/2000/svg" width="${VB_W}" height="${VB_H}" viewBox="0 0 ${VB_W} ${VB_H}" shape-rendering="crispEdges">${EARTH_RECTS.map(
+  ([x, y, w, h]) =>
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#1a2a18"/>`
+).join('')}</svg>`;
+const SHADOW_SRC = `data:image/svg+xml;utf8,${encodeURIComponent(SHADOW_SVG_STRING)}`;
+
+const SHADOW_OFFSET_X_VB = -5;
+const SHADOW_OFFSET_Y_VB = 3;
+
 interface PondProps {
   size?: number;
   className?: string;
@@ -342,12 +407,31 @@ interface PondProps {
 
 export function Pond({ size = 900, className }: PondProps) {
   const h = (size * VB_H) / VB_W;
+  const px = size / VB_W;
+  const shadowLeft = SHADOW_OFFSET_X_VB * px;
+  const shadowTop = SHADOW_OFFSET_Y_VB * px;
   return (
     <div
       aria-hidden="true"
       className={className}
       style={{ position: 'relative', display: 'block', width: size, height: h }}
     >
+      <img
+        src={SHADOW_SRC}
+        alt=""
+        decoding="async"
+        style={{
+          position: 'absolute',
+          top: shadowTop,
+          left: shadowLeft,
+          width: size,
+          height: h,
+          maxWidth: 'none',
+          imageRendering: 'pixelated',
+          opacity: 0.32,
+          pointerEvents: 'none',
+        }}
+      />
       <img
         src={STATIC_SRC}
         alt=""
@@ -372,16 +456,37 @@ export function Pond({ size = 900, className }: PondProps) {
       >
         <style>{STYLES}</style>
         {/* Static base baked into img above. Only animated layers below. */}
-        <g className="pond-a">
-        {FRAME_A_HIGHLIGHTS.map(([x, y, w, h], i) => (
-          <rect key={`a-${i}`} x={x} y={y} width={w} height={h} fill={HIGHLIGHT_COLOR} />
+        {STREAKS.map((s, i) => (
+          <rect
+            key={`streak-${i}`}
+            className="pond-streak"
+            x={s.x}
+            y={s.y}
+            width={s.w}
+            height={1}
+            fill={RIPPLE_COLOR}
+            style={{
+              animationDuration: `${s.duration}s`,
+              animationDelay: `${-s.delay}s`,
+              ['--drift' as string]: `${s.driftPx}px`,
+            } as CSSProperties}
+          />
         ))}
-      </g>
-      <g className="pond-b">
-        {FRAME_B_HIGHLIGHTS.map(([x, y, w, h], i) => (
-          <rect key={`b-${i}`} x={x} y={y} width={w} height={h} fill={HIGHLIGHT_COLOR} />
+        {SPARKLES.map((s, i) => (
+          <rect
+            key={`sparkle-${i}`}
+            className="pond-sparkle"
+            x={s.x}
+            y={s.y}
+            width={s.w}
+            height={1}
+            fill={s.color}
+            style={{
+              animationDuration: `${s.duration}s`,
+              animationDelay: `${-s.delay}s`,
+            }}
+          />
         ))}
-      </g>
       <g className="lily-pad-group pad-a" data-frog-pad="0">
         <g opacity="0.25">
           {PAD_A_RING_3.map(([x, y, w, h], i) => (

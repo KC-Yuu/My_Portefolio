@@ -14,9 +14,9 @@ const VB_H = 26;
 const LAYERS: ReadonlyArray<Layer> = [
   // ---------- Header (cutterbar + bar + reel posts) ----------
   // Header bar (red, projects forward)
-  { fill: '#c8362e', rects: [[38, 17, 18, 4]] },
-  { fill: '#e85a4e', rects: [[38, 17, 18, 1]] },
-  { fill: '#8c1f1a', rects: [[38, 20, 18, 1]] },
+  { fill: '#3d8b27', rects: [[38, 17, 18, 4]] },
+  { fill: '#5cb03a', rects: [[38, 17, 18, 1]] },
+  { fill: '#235817', rects: [[38, 20, 18, 1]] },
   // Cutterbar (black row)
   { fill: '#1a1a1a', rects: [[38, 21, 18, 1]] },
   // Cutterbar teeth (alternating)
@@ -25,7 +25,7 @@ const LAYERS: ReadonlyArray<Layer> = [
     [47, 22, 1, 1], [49, 22, 1, 1], [51, 22, 1, 1], [53, 22, 1, 1], [55, 22, 1, 1],
   ] },
   // Header attachment arm
-  { fill: '#6a1a14', rects: [[36, 18, 3, 3]] },
+  { fill: '#1a4011', rects: [[36, 18, 3, 3]] },
 
   // Reel posts (3 verticals)
   { fill: '#2a2a2a', rects: [[40, 12, 1, 5], [46, 12, 1, 5], [52, 12, 1, 5]] },
@@ -36,13 +36,13 @@ const LAYERS: ReadonlyArray<Layer> = [
   { fill: '#f0c060', rects: [[40, 13, 1, 3], [44, 13, 1, 3], [48, 13, 1, 3], [52, 13, 1, 3]] },
 
   // ---------- Body chassis (red) ----------
-  { fill: '#c8362e', rects: [[4, 13, 34, 9]] },
-  { fill: '#e85a4e', rects: [[4, 13, 34, 1]] },
-  { fill: '#8c1f1a', rects: [[4, 21, 34, 1]] },
-  { fill: '#6a1a14', rects: [[36, 14, 2, 4]] },
+  { fill: '#3d8b27', rects: [[4, 13, 34, 9]] },
+  { fill: '#5cb03a', rects: [[4, 13, 34, 1]] },
+  { fill: '#235817', rects: [[4, 21, 34, 1]] },
+  { fill: '#1a4011', rects: [[36, 14, 2, 4]] },
   // Engine vents
-  { fill: '#5a1208', rects: [[6, 16, 1, 3], [9, 16, 1, 3], [12, 16, 1, 3]] },
-  { fill: '#ff7a6a', rects: [[6, 15, 1, 1], [9, 15, 1, 1], [12, 15, 1, 1]] },
+  { fill: '#11300a', rects: [[6, 16, 1, 3], [9, 16, 1, 3], [12, 16, 1, 3]] },
+  { fill: '#f0c060', rects: [[6, 15, 1, 1], [9, 15, 1, 1], [12, 15, 1, 1]] },
 
   // ---------- Grain tank (top-back of body) ----------
   { fill: '#a89028', rects: [[4, 6, 14, 7]] },
@@ -56,9 +56,9 @@ const LAYERS: ReadonlyArray<Layer> = [
   { fill: '#d4a040', rects: [[11, 5, 1, 1]] },
 
   // ---------- Cab ----------
-  { fill: '#c8362e', rects: [[20, 4, 16, 10]] },
-  { fill: '#e85a4e', rects: [[20, 4, 16, 1], [20, 4, 1, 10]] },
-  { fill: '#8c1f1a', rects: [[35, 4, 1, 10], [20, 13, 16, 1]] },
+  { fill: '#3d8b27', rects: [[20, 4, 16, 10]] },
+  { fill: '#5cb03a', rects: [[20, 4, 16, 1], [20, 4, 1, 10]] },
+  { fill: '#235817', rects: [[35, 4, 1, 10], [20, 13, 16, 1]] },
   // Cab window
   { fill: '#7ab3e0', rects: [[22, 6, 12, 6]] },
   { fill: '#b8d8f0', rects: [[22, 6, 12, 1], [22, 6, 1, 6]] },
