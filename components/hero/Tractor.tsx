@@ -95,8 +95,8 @@ export function Tractor() {
 
   const startRef = useRef<number>(0);
   const reduceMotionRef = useRef<boolean>(false);
-  const lastDirtPRef = useRef<number[]>(new Array(N_ROWS).fill(-1));
-  const lastSeedPRef = useRef<number[]>(new Array(N_ROWS).fill(-1));
+  const lastDirtClipRef = useRef<string[]>(new Array(N_ROWS).fill(''));
+  const lastSeedClipRef = useRef<string[]>(new Array(N_ROWS).fill(''));
   const lastFlowerPRef = useRef<number[][]>(
     Array.from({ length: N_ROWS }, () => new Array(FLOWERS_PER_ROW).fill(-1)),
   );
@@ -136,8 +136,8 @@ export function Tractor() {
     if (!startRef.current) startRef.current = now;
     const start = startRef.current;
     const reduceMotion = reduceMotionRef.current;
-    const lastDirtP = lastDirtPRef.current;
-    const lastSeedP = lastSeedPRef.current;
+    const lastDirtClip = lastDirtClipRef.current;
+    const lastSeedClip = lastSeedClipRef.current;
     const lastFlowerP = lastFlowerPRef.current;
 
     const elapsed = now - start;
@@ -172,22 +172,68 @@ export function Tractor() {
       return Math.round(wvw * 10) / 10;
     };
 
+    // Harvest swath: like trailWidthFor but anchored on the LEADING edge of the
+    // combine (front of sprite in direction of travel) so soil clears from the
+    // sweep side as the combine moves.
+    const harvestSwathFor = (n: number): number => {
+      if (passIdx > n) return 100;
+      if (passIdx < n) return 0;
+      const isLRPass = n % 2 === 0;
+      const raw = isLRPass ? tractorX + spriteVw : 100 - tractorX;
+      return raw < 0 ? 0 : raw > 100 ? 100 : raw;
+    };
+
+    // Build clip-path inset for a row given a swath (0..100) and direction.
+    // grow=true: visible region grows FROM the sweep side.
+    // grow=false (harvest): visible region SHRINKS — remnant on opposite side.
+    const clipFor = (n: number, swath: number, grow: boolean): string => {
+      const s = Math.round(swath * 10) / 10;
+      const isLRRow = n % 2 === 0;
+      if (grow) {
+        // LR: keep left [0, s], clip right (100-s)%
+        // RL: keep right [100-s, 100], clip left (100-s)%
+        return isLRRow
+          ? `inset(0 ${100 - s}% 0 0)`
+          : `inset(0 0 0 ${100 - s}%)`;
+      }
+      // Harvest: remove the swept side, keep the opposite side
+      return isLRRow
+        ? `inset(0 0 0 ${s}%)`
+        : `inset(0 ${s}% 0 0)`;
+    };
+
     for (let n = 0; n < N_ROWS; n++) {
-      const dirtW = phaseIdx === 0 ? trailWidthFor(n) : 100;
+      // Dirt clip-path: grows during plow, full during seed/grow, shrinks during harvest.
+      let dirtClip: string;
+      if (phaseIdx === 0) {
+        dirtClip = clipFor(n, trailWidthFor(n), true);
+      } else if (phaseIdx === 3) {
+        dirtClip = clipFor(n, harvestSwathFor(n), false);
+      } else {
+        dirtClip = 'inset(0 0 0 0)';
+      }
       const dirtEl = dirtRefs.current[n];
-      if (dirtEl && dirtW !== lastDirtP[n]) {
-        lastDirtP[n] = dirtW;
-        dirtEl.style.width = `${dirtW}vw`;
+      if (dirtEl && dirtClip !== lastDirtClip[n]) {
+        lastDirtClip[n] = dirtClip;
+        dirtEl.style.clipPath = dirtClip;
       }
 
-      let seedW: number;
-      if (phaseIdx === 0) seedW = 0;
-      else if (phaseIdx === 1) seedW = trailWidthFor(n);
-      else seedW = 100;
+      // Seed clip-path: 0 during plow, grows during seed, full during grow,
+      // shrinks during harvest (mirrors dirt phase 3 behavior).
+      let seedClip: string;
+      if (phaseIdx === 0) {
+        seedClip = 'inset(0 100% 0 0)';
+      } else if (phaseIdx === 1) {
+        seedClip = clipFor(n, trailWidthFor(n), true);
+      } else if (phaseIdx === 3) {
+        seedClip = clipFor(n, harvestSwathFor(n), false);
+      } else {
+        seedClip = 'inset(0 0 0 0)';
+      }
       const seedEl = seedRefs.current[n];
-      if (seedEl && seedW !== lastSeedP[n]) {
-        lastSeedP[n] = seedW;
-        seedEl.style.width = `${seedW}vw`;
+      if (seedEl && seedClip !== lastSeedClip[n]) {
+        lastSeedClip[n] = seedClip;
+        seedEl.style.clipPath = seedClip;
       }
     }
 
@@ -214,14 +260,6 @@ export function Tractor() {
         }
       }
     } else if (phaseIdx === 3) {
-      // Harvest swath per row (vw from the appropriate edge based on direction).
-      const harvestSwathFor = (n: number): number => {
-        if (passIdx > n) return 100;
-        if (passIdx < n) return 0;
-        const isLRPass = n % 2 === 0;
-        const raw = isLRPass ? tractorX + spriteVw : 100 - tractorX;
-        return raw < 0 ? 0 : raw > 100 ? 100 : raw;
-      };
       for (let r = 0; r < N_ROWS; r++) {
         const swath = harvestSwathFor(r);
         const isLRRow = r % 2 === 0;
@@ -328,7 +366,6 @@ export function Tractor() {
       }}
     >
       {Array.from({ length: N_ROWS }, (_, n) => {
-        const isLR = n % 2 === 0;
         const bottom = rowBottom(n);
         const height = TRAIL_HEIGHTS[n];
         return (
@@ -339,34 +376,20 @@ export function Tractor() {
             }}
             style={{
               position: 'absolute',
-              left: isLR ? 0 : undefined,
-              right: isLR ? undefined : 0,
+              left: 0,
+              right: 0,
               bottom: `${bottom}px`,
               height: `${height}px`,
-              width: 0,
-              overflow: 'hidden',
-              contain: 'strict',
-              willChange: 'width',
+              background: TRAIL_BG,
+              backgroundSize: TRAIL_BG_SIZE,
+              boxShadow: TRAIL_SHADOW,
+              clipPath: 'inset(0 100% 0 0)',
+              willChange: 'clip-path',
             }}
-          >
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: isLR ? 0 : undefined,
-                right: isLR ? undefined : 0,
-                width: '100vw',
-                height: '100%',
-                background: TRAIL_BG,
-                backgroundSize: TRAIL_BG_SIZE,
-                boxShadow: TRAIL_SHADOW,
-              }}
-            />
-          </div>
+          />
         );
       })}
       {Array.from({ length: N_ROWS }, (_, n) => {
-        const isLR = n % 2 === 0;
         const bottom = rowBottom(n);
         const height = TRAIL_HEIGHTS[n];
         return (
@@ -377,30 +400,17 @@ export function Tractor() {
             }}
             style={{
               position: 'absolute',
-              left: isLR ? 0 : undefined,
-              right: isLR ? undefined : 0,
+              left: 0,
+              right: 0,
               bottom: `${bottom}px`,
               height: `${height}px`,
-              width: 0,
-              overflow: 'hidden',
-              contain: 'strict',
-              willChange: 'width',
+              background: SEED_BG,
+              backgroundSize: SEED_BG_SIZE,
+              clipPath: 'inset(0 100% 0 0)',
+              willChange: 'clip-path',
               zIndex: 1,
             }}
-          >
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: isLR ? 0 : undefined,
-                right: isLR ? undefined : 0,
-                width: '100vw',
-                height: '100%',
-                background: SEED_BG,
-                backgroundSize: SEED_BG_SIZE,
-              }}
-            />
-          </div>
+          />
         );
       })}
       {Array.from({ length: N_ROWS }, (_, r) => {
