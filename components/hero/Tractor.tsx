@@ -1,59 +1,91 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { Tractor as TractorSprite } from '@/components/sprites/Tractor';
 import { TractorSeeder as TractorSeederSprite } from '@/components/sprites/TractorSeeder';
+import { Sunflower } from '@/components/sprites/Sunflower';
 import { useAnimationFrame } from './useAnimationFrame';
 
 const TRACTOR_SIZE = 72;
 const SPRITE_W_PX = 132;
 
-// Two phases: plow (0) then seed (1). Same 4-pass logic reused per phase.
-const N_PASSES = 4;
-const N_PHASES = 2;
-const TOTAL_PASSES = N_PASSES * N_PHASES;
+// Three phases of the field cycle:
+//   0 = plow   (4 passes, tractor + plow leaves dirt rows)
+//   1 = seed   (4 passes, same path, sunflower-seed overlay)
+//   2 = grow   (1 pass,   tractor offscreen, sunflowers bloom on planted rows)
+const N_PLOW = 4;
+const N_SEED = 4;
+const N_GROW = 1;
+const N_ROWS = N_PLOW;
+const TOTAL_PASSES = N_PLOW + N_SEED + N_GROW;
 const PASS_MS = 28000;
 const CYCLE_MS = TOTAL_PASSES * PASS_MS;
 const SPAN_VW = 128;
 
-// Per-pass trail height. Last pass thinner so it doesn't intrude on flowers.
-const TRAIL_HEIGHTS = [28, 28, 28, 20]; // index = pass index, 0 = top row, N-1 = bottom row
+const TRAIL_HEIGHTS = [28, 28, 28, 20];
 
-// Row n bottom (px from container bottom) = sum of heights of rows below (index > n)
 function rowBottom(n: number): number {
   let sum = 0;
-  for (let i = n + 1; i < N_PASSES; i++) sum += TRAIL_HEIGHTS[i];
+  for (let i = n + 1; i < N_ROWS; i++) sum += TRAIL_HEIGHTS[i];
   return sum;
 }
 
 const TOP_ROW_BOTTOM = rowBottom(0);
 const CONTAINER_H = TOP_ROW_BOTTOM + TRACTOR_SIZE;
-const CONTAINER_TOP = -148; // user-approved "parfait" top
+const CONTAINER_TOP = -148;
 
-// Pixel-art dirt tile (16x16) — base + dark/light spots matching GroundLayer dirt-tile.
 const TRAIL_PATTERN_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' shape-rendering='crispEdges'><rect width='16' height='16' fill='%234a2e15'/><g fill='%232a1808'><rect x='1' y='0' width='1' height='1'/><rect x='5' y='0' width='1' height='1'/><rect x='10' y='1' width='1' height='1'/><rect x='4' y='2' width='1' height='1'/><rect x='14' y='2' width='1' height='1'/><rect x='2' y='3' width='1' height='1'/><rect x='12' y='3' width='1' height='1'/><rect x='7' y='4' width='1' height='1'/><rect x='11' y='4' width='1' height='1'/><rect x='1' y='5' width='1' height='1'/><rect x='15' y='5' width='1' height='1'/><rect x='9' y='6' width='1' height='1'/><rect x='4' y='7' width='1' height='1'/><rect x='0' y='8' width='1' height='1'/><rect x='13' y='8' width='1' height='1'/><rect x='6' y='9' width='1' height='1'/><rect x='11' y='10' width='1' height='1'/><rect x='3' y='11' width='1' height='1'/><rect x='7' y='11' width='1' height='1'/><rect x='8' y='12' width='1' height='1'/><rect x='1' y='13' width='1' height='1'/><rect x='14' y='14' width='1' height='1'/><rect x='5' y='15' width='1' height='1'/><rect x='3' y='14' width='2' height='1'/><rect x='11' y='2' width='2' height='1'/></g><g fill='%236b4423'><rect x='7' y='1' width='1' height='1'/><rect x='3' y='6' width='1' height='1'/><rect x='12' y='10' width='1' height='1'/><rect x='2' y='9' width='1' height='1'/><rect x='10' y='13' width='1' height='1'/><rect x='6' y='3' width='1' height='1'/><rect x='14' y='7' width='1' height='1'/></g></svg>`;
 const TRAIL_BG = `url("data:image/svg+xml;utf8,${TRAIL_PATTERN_SVG}") repeat`;
 const TRAIL_BG_SIZE = '16px 16px';
 const TRAIL_SHADOW =
   'inset 0 1px 0 0 rgba(0,0,0,0.55), inset 0 -1px 0 0 rgba(0,0,0,0.65)';
 
-// Sunflower-seed overlay tile (16x16) — transparent base, sparse striped seeds.
-// Sits on top of dirt rows during the seed phase so plowed dirt stays visible.
 const SEED_PATTERN_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' shape-rendering='crispEdges'><g fill='%231a0f08'><rect x='3' y='5' width='2' height='1'/><rect x='11' y='9' width='2' height='1'/><rect x='6' y='12' width='2' height='1'/></g><g fill='%23f0d878'><rect x='3' y='6' width='2' height='1'/><rect x='11' y='10' width='2' height='1'/><rect x='6' y='13' width='2' height='1'/></g><g fill='%238a6020'><rect x='3' y='7' width='2' height='1'/><rect x='11' y='11' width='2' height='1'/><rect x='6' y='14' width='2' height='1'/></g></svg>`;
 const SEED_BG = `url("data:image/svg+xml;utf8,${SEED_PATTERN_SVG}") repeat`;
 const SEED_BG_SIZE = '16px 16px';
 
+// Denser sunflower field: 14 per row × 4 rows = 56. Hidden via display:none
+// outside the grow phase so paint cost is paid only ~11% of the cycle.
+const FLOWERS_PER_ROW = 14;
+const FLOWER_SIZE = 28;
+const FLOWER_XS = Array.from({ length: FLOWERS_PER_ROW }, (_, i) =>
+  4 + (92 * i) / (FLOWERS_PER_ROW - 1),
+);
+// Slight vertical jitter per flower so the row doesn't look like a ruler.
+const FLOWER_JITTER_Y = Array.from({ length: FLOWERS_PER_ROW }, (_, i) =>
+  ((i * 37) % 5) - 2,
+);
+// Mild horizontal jitter so spacing isn't perfectly periodic.
+const FLOWER_JITTER_X = Array.from({ length: FLOWERS_PER_ROW }, (_, i) =>
+  (((i * 53) % 7) - 3) * 0.4,
+);
+
+function classifyPhase(globalIdx: number): { phaseIdx: number; passIdx: number } {
+  if (globalIdx < N_PLOW) return { phaseIdx: 0, passIdx: globalIdx };
+  if (globalIdx < N_PLOW + N_SEED) return { phaseIdx: 1, passIdx: globalIdx - N_PLOW };
+  return { phaseIdx: 2, passIdx: globalIdx - N_PLOW - N_SEED };
+}
+
+const DEV = process.env.NODE_ENV === 'development';
+
 export function Tractor() {
   const dirtRefs = useRef<(HTMLDivElement | null)[]>([]);
   const seedRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const flowerRowRefs = useRef<(HTMLDivElement | null)[]>(new Array(N_ROWS).fill(null));
   const tractorRef = useRef<HTMLDivElement>(null);
   const plowSpriteRef = useRef<HTMLDivElement>(null);
   const seederSpriteRef = useRef<HTMLDivElement>(null);
+  const flowerRefs = useRef<(HTMLDivElement | null)[][]>(
+    Array.from({ length: N_ROWS }, () => new Array(FLOWERS_PER_ROW).fill(null)),
+  );
 
   const startRef = useRef<number>(0);
   const reduceMotionRef = useRef<boolean>(false);
-  const lastDirtPRef = useRef<number[]>(new Array(N_PASSES).fill(-1));
-  const lastSeedPRef = useRef<number[]>(new Array(N_PASSES).fill(-1));
+  const lastDirtPRef = useRef<number[]>(new Array(N_ROWS).fill(-1));
+  const lastSeedPRef = useRef<number[]>(new Array(N_ROWS).fill(-1));
+  const lastFlowerPRef = useRef<number[][]>(
+    Array.from({ length: N_ROWS }, () => new Array(FLOWERS_PER_ROW).fill(-1)),
+  );
   const lastTractorTransformRef = useRef<string>('');
   const lastPhaseRef = useRef<number>(-1);
 
@@ -64,23 +96,44 @@ export function Tractor() {
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }, []);
 
+  const jumpTo = useCallback((globalIdx: number) => {
+    startRef.current = performance.now() - globalIdx * PASS_MS;
+    lastPhaseRef.current = -1; // force phase-change side-effects to re-run
+  }, []);
+
+  // Dev keyboard shortcuts: 1=plow, 2=seed, 3=grow, R=restart cycle.
+  useEffect(() => {
+    if (!DEV) return;
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.key === '1') jumpTo(0);
+      else if (e.key === '2') jumpTo(N_PLOW);
+      else if (e.key === '3') jumpTo(N_PLOW + N_SEED);
+      else if (e.key === 'r' || e.key === 'R') jumpTo(0);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [jumpTo]);
+
   useAnimationFrame((now: number) => {
     if (!startRef.current) startRef.current = now;
     const start = startRef.current;
     const reduceMotion = reduceMotionRef.current;
     const lastDirtP = lastDirtPRef.current;
     const lastSeedP = lastSeedPRef.current;
+    const lastFlowerP = lastFlowerPRef.current;
 
-    const t = (now - start) % CYCLE_MS;
+    const elapsed = now - start;
+    const t = ((elapsed % CYCLE_MS) + CYCLE_MS) % CYCLE_MS;
     const globalIdx = Math.min(TOTAL_PASSES - 1, Math.floor(t / PASS_MS));
-    const phaseIdx = Math.floor(globalIdx / N_PASSES); // 0 = plow, 1 = seed
-    const passIdx = globalIdx % N_PASSES;              // 0..3 within phase
+    const { phaseIdx, passIdx } = classifyPhase(globalIdx);
     const localP = (t - globalIdx * PASS_MS) / PASS_MS;
     const isLR = passIdx % 2 === 0;
 
     const tractorX = isLR ? -14 + SPAN_VW * localP : 114 - SPAN_VW * localP;
-    const visualRowIdx = Math.min(passIdx, N_PASSES - 2);
-    const lastPassDrop = passIdx === N_PASSES - 1 ? 16 : 0;
+    const visualRowIdx = Math.min(passIdx, N_ROWS - 2);
+    const lastPassDrop = passIdx === N_ROWS - 1 ? 16 : 0;
     const baseY = TOP_ROW_BOTTOM - rowBottom(visualRowIdx) + lastPassDrop;
     const bounce = reduceMotion ? 0 : Math.round(Math.sin(now * 0.014) * 1.2);
     const tractorY = baseY + bounce;
@@ -91,7 +144,6 @@ export function Tractor() {
         ? (SPRITE_W_PX / window.innerWidth) * 100
         : 8;
 
-    // Trail width for the active phase at row n given current passIdx + tractor x.
     const trailWidthFor = (n: number): number => {
       let wvw: number;
       if (passIdx > n) wvw = 100;
@@ -103,21 +155,43 @@ export function Tractor() {
       return Math.round(wvw * 10) / 10;
     };
 
-    for (let n = 0; n < N_PASSES; n++) {
-      // Dirt: full during phase 1 (seed), grows during phase 0 (plow), 0 at start of cycle.
-      const dirtW = phaseIdx >= 1 ? 100 : trailWidthFor(n);
+    for (let n = 0; n < N_ROWS; n++) {
+      const dirtW = phaseIdx === 0 ? trailWidthFor(n) : 100;
       const dirtEl = dirtRefs.current[n];
       if (dirtEl && dirtW !== lastDirtP[n]) {
         lastDirtP[n] = dirtW;
         dirtEl.style.width = `${dirtW}vw`;
       }
 
-      // Seed overlay: 0 during plow phase, grows during seed phase.
-      const seedW = phaseIdx >= 1 ? trailWidthFor(n) : 0;
+      let seedW: number;
+      if (phaseIdx === 0) seedW = 0;
+      else if (phaseIdx === 1) seedW = trailWidthFor(n);
+      else seedW = 100;
       const seedEl = seedRefs.current[n];
       if (seedEl && seedW !== lastSeedP[n]) {
         lastSeedP[n] = seedW;
         seedEl.style.width = `${seedW}vw`;
+      }
+    }
+
+    // Sunflowers: only updated during phase 2 (display:none toggled elsewhere
+    // hides them otherwise so we skip per-frame work below).
+    if (phaseIdx === 2) {
+      for (let r = 0; r < N_ROWS; r++) {
+        for (let c = 0; c < FLOWERS_PER_ROW; c++) {
+          const rowDelay = r * 0.04;
+          const colDelay = (c / Math.max(1, FLOWERS_PER_ROW - 1)) * 0.35;
+          const delay = rowDelay + colDelay;
+          const span = 0.4;
+          const raw = (localP - delay) / span;
+          const p = Math.round((raw < 0 ? 0 : raw > 1 ? 1 : raw) * 100) / 100;
+          if (p === lastFlowerP[r][c]) continue;
+          lastFlowerP[r][c] = p;
+          const el = flowerRefs.current[r][c];
+          if (!el) continue;
+          el.style.transform = `scaleY(${p})`;
+          el.style.opacity = `${Math.min(1, p * 2.5)}`;
+        }
       }
     }
 
@@ -130,7 +204,6 @@ export function Tractor() {
       }
     }
 
-    // Swap implement sprite when phase changes.
     if (phaseIdx !== lastPhaseRef.current) {
       lastPhaseRef.current = phaseIdx;
       if (plowSpriteRef.current) {
@@ -138,6 +211,32 @@ export function Tractor() {
       }
       if (seederSpriteRef.current) {
         seederSpriteRef.current.style.display = phaseIdx === 1 ? 'block' : 'none';
+      }
+      if (tractorRef.current) {
+        tractorRef.current.style.display = phaseIdx === 2 ? 'none' : 'block';
+      }
+      // Toggle flower rows visibility — paid only when phase changes.
+      for (let r = 0; r < N_ROWS; r++) {
+        const rowEl = flowerRowRefs.current[r];
+        if (rowEl) rowEl.style.display = phaseIdx === 2 ? 'block' : 'none';
+      }
+      // Reset cached per-flower state so first frame of phase 2 writes fresh values.
+      if (phaseIdx === 2) {
+        for (let r = 0; r < N_ROWS; r++) {
+          for (let c = 0; c < FLOWERS_PER_ROW; c++) lastFlowerP[r][c] = -1;
+        }
+      } else {
+        // Snap flowers back to invisible state.
+        for (let r = 0; r < N_ROWS; r++) {
+          for (let c = 0; c < FLOWERS_PER_ROW; c++) {
+            const el = flowerRefs.current[r][c];
+            if (el) {
+              el.style.transform = 'scaleY(0)';
+              el.style.opacity = '0';
+            }
+            lastFlowerP[r][c] = 0;
+          }
+        }
       }
     }
   });
@@ -156,7 +255,7 @@ export function Tractor() {
         contain: 'layout paint',
       }}
     >
-      {Array.from({ length: N_PASSES }, (_, n) => {
+      {Array.from({ length: N_ROWS }, (_, n) => {
         const isLR = n % 2 === 0;
         const bottom = rowBottom(n);
         const height = TRAIL_HEIGHTS[n];
@@ -194,7 +293,7 @@ export function Tractor() {
           </div>
         );
       })}
-      {Array.from({ length: N_PASSES }, (_, n) => {
+      {Array.from({ length: N_ROWS }, (_, n) => {
         const isLR = n % 2 === 0;
         const bottom = rowBottom(n);
         const height = TRAIL_HEIGHTS[n];
@@ -232,6 +331,46 @@ export function Tractor() {
           </div>
         );
       })}
+      {Array.from({ length: N_ROWS }, (_, r) => {
+        const rowTop = rowBottom(r) + TRAIL_HEIGHTS[r];
+        return (
+          <div
+            key={`flowers-${r}`}
+            ref={(el) => {
+              flowerRowRefs.current[r] = el;
+            }}
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: `${rowTop}px`,
+              height: 0,
+              pointerEvents: 'none',
+              zIndex: 2 + r,
+              display: 'none',
+            }}
+          >
+            {FLOWER_XS.map((x, c) => (
+              <div
+                key={`flower-${r}-${c}`}
+                ref={(el) => {
+                  flowerRefs.current[r][c] = el;
+                }}
+                style={{
+                  position: 'absolute',
+                  left: `calc(${x + FLOWER_JITTER_X[c]}vw)`,
+                  bottom: `${FLOWER_JITTER_Y[c]}px`,
+                  transform: 'scaleY(0)',
+                  transformOrigin: '50% 100%',
+                  opacity: 0,
+                }}
+              >
+                <Sunflower size={FLOWER_SIZE} />
+              </div>
+            ))}
+          </div>
+        );
+      })}
       <div
         ref={tractorRef}
         style={{
@@ -242,7 +381,7 @@ export function Tractor() {
           height: `${TRACTOR_SIZE}px`,
           transform: 'translateX(-14vw) translateY(0) scaleX(1)',
           willChange: 'transform',
-          zIndex: 2,
+          zIndex: 10,
         }}
       >
         <style>{`
@@ -284,6 +423,42 @@ export function Tractor() {
           <TractorSeederSprite size={TRACTOR_SIZE} />
         </div>
       </div>
+      {DEV && <TractorDevPanel jumpTo={jumpTo} />}
+    </div>
+  );
+}
+
+function TractorDevPanel({ jumpTo }: { jumpTo: (idx: number) => void }) {
+  const btn: React.CSSProperties = {
+    padding: '4px 8px',
+    background: '#222',
+    color: '#fff',
+    border: '1px solid #555',
+    borderRadius: 4,
+    cursor: 'pointer',
+    font: '11px ui-monospace, monospace',
+  };
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        bottom: 8,
+        right: 8,
+        zIndex: 9999,
+        display: 'flex',
+        gap: 4,
+        padding: 6,
+        background: 'rgba(0,0,0,0.6)',
+        borderRadius: 6,
+        pointerEvents: 'auto',
+        font: '11px ui-monospace, monospace',
+        color: '#bbb',
+      }}
+    >
+      <span style={{ alignSelf: 'center', marginRight: 4 }}>tractor</span>
+      <button style={btn} onClick={() => jumpTo(0)} title="key: 1">▶ plow</button>
+      <button style={btn} onClick={() => jumpTo(N_PLOW)} title="key: 2">🌱 seed</button>
+      <button style={btn} onClick={() => jumpTo(N_PLOW + N_SEED)} title="key: 3">🌻 grow</button>
     </div>
   );
 }
