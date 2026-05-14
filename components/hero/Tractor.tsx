@@ -44,24 +44,24 @@ const SEED_PATTERN_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='16' hei
 const SEED_BG = `url("data:image/svg+xml;utf8,${SEED_PATTERN_SVG}") repeat`;
 const SEED_BG_SIZE = '16px 16px';
 
-// Dense sunflower field: 28 per row × 4 rows = 112. Hidden via display:none
+// Dense sunflower field: 50 per row × 4 rows = 200. Hidden via display:none
 // outside the grow phase so paint cost is paid only ~11% of the cycle.
-const FLOWERS_PER_ROW = 28;
+const FLOWERS_PER_ROW = 50;
 const FLOWER_SIZE = 28;
 const FLOWER_XS = Array.from({ length: FLOWERS_PER_ROW }, (_, i) =>
-  2 + (96 * i) / (FLOWERS_PER_ROW - 1),
+  1 + (98 * i) / (FLOWERS_PER_ROW - 1),
 );
 // Vertical jitter per flower so the row doesn't look like a ruler.
 const FLOWER_JITTER_Y = Array.from({ length: FLOWERS_PER_ROW }, (_, i) =>
-  ((i * 37) % 7) - 3,
+  ((i * 37) % 11) - 5,
 );
-// Horizontal jitter so spacing isn't perfectly periodic.
+// Horizontal jitter so spacing isn't perfectly periodic (in vw).
 const FLOWER_JITTER_X = Array.from({ length: FLOWERS_PER_ROW }, (_, i) =>
-  (((i * 53) % 9) - 4) * 0.5,
+  (((i * 53) % 13) - 6) * 0.15,
 );
-// Size jitter — vary scale slightly per flower for organic look.
+// Size jitter — vary scale per flower for organic look.
 const FLOWER_SCALE = Array.from({ length: FLOWERS_PER_ROW }, (_, i) =>
-  0.85 + ((i * 71) % 6) / 20,
+  0.75 + ((i * 71) % 11) / 20,
 );
 
 function classifyPhase(globalIdx: number): { phaseIdx: number; passIdx: number } {
